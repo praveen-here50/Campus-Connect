@@ -29,9 +29,27 @@ const STUDENTS = [
   { key: 'arivu', name: 'Arivu', headline: 'First-year, learning web dev', department: 'Computer Science', year: 1, availability: 'LOOKING', skills: { html: 3, css: 3, javascript: 2 } },
 ]
 
+// The main student signs in as the public demo account; on a later run (the address is taken) she gets a
+// run-suffixed address like everyone else.
+const DEMO_EMAIL = 'demo@demo.campus.edu'
+
+async function registerStudent(s) {
+  if (s.key === 'kavya') {
+    try {
+      const res = await call('POST', '/api/auth/register', null, { email: DEMO_EMAIL, password: PASSWORD, fullName: s.name })
+      return { res, email: DEMO_EMAIL }
+    } catch (e) {
+      if (!/-> 409/.test(e.message)) throw e
+    }
+  }
+  const email = `${s.key}.${RUN}@demo.campus.edu`
+  return { res: await call('POST', '/api/auth/register', null, { email, password: PASSWORD, fullName: s.name }), email }
+}
+
 const accounts = {}
 for (const s of STUDENTS) {
-  const res = await call('POST', '/api/auth/register', null, { email: `${s.key}.${RUN}@demo.campus.edu`, password: PASSWORD, fullName: s.name })
+  const { res, email } = await registerStudent(s)
+  if (s.key === 'kavya') accounts.mainEmail = email
   const u = await call('PUT', '/api/users/me', res.token, {
     fullName: s.name, headline: s.headline, bio: s.bio ?? null, department: s.department, yearOfStudy: s.year,
     availability: s.availability, skills: s.skills, githubUrl: null, linkedinUrl: null,
@@ -114,4 +132,4 @@ await call('POST', '/api/connections', T('kavya'), { userId: ID('kugan') })
 await call('POST', '/api/connections', T('kugan'), { userId: ID('kavya') })
 await call('POST', '/api/connections', T('yazhini'), { userId: ID('kavya') })
 
-console.log(JSON.stringify({ email: `kavya.${RUN}@demo.campus.edu`, password: PASSWORD, token: T('kavya') }))
+console.log(JSON.stringify({ email: accounts.mainEmail, password: PASSWORD, token: T('kavya') }))

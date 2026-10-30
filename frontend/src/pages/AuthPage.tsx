@@ -3,6 +3,10 @@ import { Link, Navigate, useLocation } from 'react-router-dom'
 import { FieldError, Logo, SeatStrip, Sep, SkillChips } from '../components/ui'
 import { useAuth } from '../lib/auth'
 
+// A public demo shows its demo account on the sign-in page (set both on the host; unset hides the card).
+const DEMO_EMAIL = (import.meta.env.VITE_DEMO_EMAIL as string | undefined)?.trim()
+const DEMO_PASSWORD = (import.meta.env.VITE_DEMO_PASSWORD as string | undefined)?.trim()
+
 /** Sign in and sign up share one screen: what CampusConnect is on the left, the form on the right. */
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { user, login, register } = useAuth()
@@ -18,18 +22,27 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
     return <Navigate to={from} replace />
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
+  async function run(action: () => Promise<void>) {
     setBusy(true)
     setError(null)
     try {
-      if (mode === 'login') await login(email, password)
-      else await register(fullName, email, password)
+      await action()
     } catch (err) {
       setError(err)
     } finally {
       setBusy(false)
     }
+  }
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    void run(() => (mode === 'login' ? login(email, password) : register(fullName, email, password)))
+  }
+
+  function tryDemo() {
+    setEmail(DEMO_EMAIL!)
+    setPassword(DEMO_PASSWORD!)
+    void run(() => login(DEMO_EMAIL!, DEMO_PASSWORD!))
   }
 
   const isLogin = mode === 'login'
@@ -119,6 +132,21 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           <button type="submit" className="btn btn-primary mt-6 w-full" disabled={busy}>
             {busy ? 'One moment…' : isLogin ? 'Sign in' : 'Create account'}
           </button>
+
+          {isLogin && DEMO_EMAIL && DEMO_PASSWORD && (
+            <div className="mt-8 rounded-2xl border border-line bg-raised p-4">
+              <p className="font-medium">Just looking around?</p>
+              <p className="mt-1 text-[13px] text-muted">Sign in as a demo student with a team, tasks and requests to answer.</p>
+              <button type="button" className="btn btn-secondary mt-3 w-full" disabled={busy} onClick={tryDemo}>
+                Try the demo
+              </button>
+              <p className="mt-2.5 text-[13px] text-muted">
+                {DEMO_EMAIL}
+                <Sep />
+                {DEMO_PASSWORD}
+              </p>
+            </div>
+          )}
         </form>
       </section>
     </div>

@@ -2,6 +2,10 @@
 
 > Find the people to build it with: teammates by skill, team workspaces and a campus knowledge hub.
 
+**Live demo: [campusconnect-tn.vercel.app](https://campusconnect-tn.vercel.app)**. Click **Try the demo** on the sign-in
+page, or sign in with `demo@demo.campus.edu` and password `campus-demo-1`. The server sleeps when nobody has visited for a
+while, so the first page can take up to a minute.
+
 ![CampusConnect home page](docs/screenshots/home.png)
 
 CampusConnect helps students turn an idea into a team. **Students** list their skills and find projects with a free
@@ -107,12 +111,13 @@ of moving to another one. To run the frontend in Docker instead: `docker compose
 
 ### Demo accounts
 
-Password for all: `campus-demo-1`. Each run of the seed script makes a new set with its own short code in the email,
-`<name>.<code>@demo.campus.edu`; the script prints the code with Kavya's address.
+Password for all: `campus-demo-1`. The main student is the demo account, `demo@demo.campus.edu`; the others have a
+short code from the seed run in their address, `<name>.<code>@demo.campus.edu`, and the script prints it. (Running the
+script again makes a second set, with the main student at `kavya.<code>@demo.campus.edu`.)
 
 | Student | Who | Good for trying |
 |---|---|---|
-| `kavya.<code>@demo.campus.edu` | Kavya, third-year CS, web and data | Owner of Bike-share dock tracker with a request waiting; Home, inbox, workspace |
+| `demo@demo.campus.edu` | Kavya, third-year CS, web and data | Owner of Bike-share dock tracker with a request waiting; Home, inbox, workspace |
 | `kugan.<code>@demo.campus.edu` | Kugan, embedded systems and IoT | Member of the Bike-share team, hub author |
 | `ramesh.<code>@demo.campus.edu` | Ramesh, backend in Java and Go | Owner of Library study-room finder |
 
@@ -156,7 +161,8 @@ A free public deployment: frontend on **Vercel**, API on **Render** (Docker), da
    If you don't know the Vercel address yet, put a placeholder and change it on Render's Environment page after step 3.
 3. **Vercel:** Add New → Project → this repository, Root Directory `frontend` (it reads
    [`frontend/vercel.json`](frontend/vercel.json)), with the environment variable
-   `VITE_API_URL=https://<render-service>.onrender.com`.
+   `VITE_API_URL=https://<render-service>.onrender.com`. For a public demo, also set `VITE_DEMO_EMAIL=demo@demo.campus.edu`
+   and `VITE_DEMO_PASSWORD=campus-demo-1`: the sign-in page then offers **Try the demo**.
 4. **Demo data (optional):** `node scripts/seed-demo.mjs https://<render-service>.onrender.com`.
 5. **Emails (optional):** host n8n (n8n Cloud or a small Docker host), import the workflows as in
    [Automation](#automation-n8n), change `http://backend:8080` in their three HTTP Request nodes to the Render address,
@@ -189,7 +195,7 @@ Locally in `backend/.env` (see [`backend/.env.example`](backend/.env.example)); 
 | `GITHUB_WEBHOOK_SECRET` | GitHub feed | The secret entered in the repository's webhook settings |
 
 Frontend: `VITE_API_URL` (production builds only) is the backend's public address; in development Vite proxies `/api`
-and `/ws`.
+and `/ws`. `VITE_DEMO_EMAIL` and `VITE_DEMO_PASSWORD` show a demo account on the sign-in page (unset hides it).
 
 ## Automation (n8n)
 
