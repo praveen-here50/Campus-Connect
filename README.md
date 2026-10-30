@@ -1,5 +1,8 @@
 # CampusConnect
 
+[![CI](https://github.com/praveen-here50/Campus-Connect/actions/workflows/ci.yml/badge.svg)](https://github.com/praveen-here50/Campus-Connect/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 > Find the people to build it with: teammates by skill, team workspaces and a campus knowledge hub.
 
 **Live demo: [campusconnect-tn.vercel.app](https://campusconnect-tn.vercel.app)**. Click **Try the demo** on the sign-in
@@ -138,6 +141,8 @@ Also Nila, Yazhini, Thenmozhi, Senthil, Malar and Arivu, each with their own ski
 cd backend && ./mvnw test            # unit tests: AI usage limit, photo type checks (the full-app test runs when DB_URL is set)
 cd frontend && npx tsc -b && npx oxlint && npm run build
 ```
+
+GitHub Actions runs both on every push and pull request ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 > **Windows with Smart App Control on:** Windows may block the unsigned native binaries Vite, Tailwind and oxlint
 > use ("An Application Control policy has blocked this file"). Run those commands in Docker
