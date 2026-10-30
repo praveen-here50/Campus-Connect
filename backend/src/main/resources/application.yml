@@ -10,7 +10,7 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
-      # Supabase free tier has a small connection budget.
+      # Free Postgres hosts (Neon, Supabase) have a small connection budget.
       maximum-pool-size: 5
   jpa:
     open-in-view: false
@@ -59,6 +59,8 @@ app:
   frontend-urls: ${FRONTEND_URLS:http://localhost:5173}
   ai:
     requests-per-minute: ${AI_REQUESTS_PER_MINUTE:10}
+    # Per student per rolling hour (assistant, résumé, drafts, task ideas); 0 for no limit.
+    questions-per-hour: ${ASSISTANT_QUESTIONS_PER_HOUR:10}
   automation:
     n8n-webhook-url: ${N8N_WEBHOOK_URL:}
     api-key: ${AUTOMATION_API_KEY:}

@@ -259,7 +259,7 @@ export function Profile() {
         <FieldError error={photo.error ?? removePhoto.error} />
       </Section>
 
-      <Section title="Import from your résumé" help="Upload a PDF and the assistant fills in your headline, bio and skills.">
+      <Section title="Import from your résumé" help="Upload a PDF and the assistant fills in your headline, bio and skills. Google's Gemini reads it; the PDF itself is not kept.">
         <input
           ref={fileRef}
           type="file"

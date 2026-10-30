@@ -38,11 +38,22 @@ public class AiController {
     private final AiClient ai;
     private final MatchService matches;
     private final AssistantService assistant;
+    private final AiUsage usage;
 
-    public AiController(AiClient ai, MatchService matches, AssistantService assistant) {
+    public AiController(AiClient ai, MatchService matches, AssistantService assistant, AiUsage usage) {
         this.ai = ai;
         this.matches = matches;
         this.assistant = assistant;
+        this.usage = usage;
+    }
+
+    /** Counts a request that calls the language model against the student's hourly allowance. */
+    private long charged(Jwt jwt) {
+        long userId = CurrentUser.id(jwt);
+        if (ai.enabled()) {
+            usage.charge(userId);
+        }
+        return userId;
     }
 
     /** Lets the UI hide AI buttons when the server has no key. */
@@ -65,21 +76,23 @@ public class AiController {
 
     @PostMapping("/assistant")
     Answer ask(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody AskRequest req) {
-        return assistant.ask(CurrentUser.id(jwt), req.question(), req.history());
+        return assistant.ask(charged(jwt), req.question(), req.history());
     }
 
     @PostMapping("/resume")
-    ResumeSuggestion resume(@RequestPart("file") MultipartFile file) {
+    ResumeSuggestion resume(@AuthenticationPrincipal Jwt jwt, @RequestPart("file") MultipartFile file) {
+        charged(jwt);
         return assistant.parseResume(file);
     }
 
     @PostMapping("/project-draft")
-    ProjectDraft draft(@Valid @RequestBody IdeaRequest req) {
+    ProjectDraft draft(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody IdeaRequest req) {
+        charged(jwt);
         return assistant.draftProject(req.idea());
     }
 
     @PostMapping("/projects/{id}/task-suggestions")
     TaskSuggestions suggestTasks(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
-        return assistant.suggestTasks(id, CurrentUser.id(jwt));
+        return assistant.suggestTasks(id, charged(jwt));
     }
 }
