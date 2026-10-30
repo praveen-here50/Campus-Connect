@@ -1,0 +1,140 @@
+{
+  "name": "CampusConnect: weekly digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "a7c0e1d2-2b22-4b63-8b2f-000000000001",
+      "name": "Every Monday 9:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8080/api/automation/weekly-digest",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "a7c0e1d2-2b22-4b63-8b2f-000000000002",
+      "name": "Students to brief",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "CampusConnect API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.MAIL_FROM || 'CampusConnect <no-reply@campusconnect.local>' }}",
+        "toEmail": "={{ $json.email }}",
+        "subject": "Your week on CampusConnect",
+        "emailFormat": "text",
+        "text": "=Hi {{ $json.fullName.split(' ')[0] }},\n\nHere is your week:\n{{ $json.pendingInvites ? '• ' + $json.pendingInvites + ' team invitation(s) waiting for your answer\\n' : '' }}{{ $json.openTasks ? '• ' + $json.openTasks + ' open task(s) assigned to you\\n' : '' }}{{ $json.unreadNotifications ? '• ' + $json.unreadNotifications + ' unread update(s)\\n' : '' }}{{ $json.newProjectsForYou.length ? '\\nNew projects that need your skills:\\n' + $json.newProjectsForYou.map(t => '• ' + t).join('\\n') + '\\n' : '' }}\n{{ $env.CAMPUSCONNECT_WEB }}\n\nCampusConnect",
+        "options": {}
+      },
+      "id": "a7c0e1d2-2b22-4b63-8b2f-000000000003",
+      "name": "Send the digest",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        480,
+        300
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": "CampusConnect SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8080/api/automation/notifications",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ userId: $('Students to brief').item.json.userId, type: 'DIGEST', message: 'Your weekly digest was emailed to you', link: '/' }) }}",
+        "options": {}
+      },
+      "id": "a7c0e1d2-2b22-4b63-8b2f-000000000004",
+      "name": "Note it in the app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "CampusConnect API key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Monday 9:00": {
+      "main": [
+        [
+          {
+            "node": "Students to brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Students to brief": {
+      "main": [
+        [
+          {
+            "node": "Send the digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send the digest": {
+      "main": [
+        [
+          {
+            "node": "Note it in the app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

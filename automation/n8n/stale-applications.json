@@ -1,0 +1,100 @@
+{
+  "name": "CampusConnect: nudge owners about unanswered applications",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "id": "c3d4e5f6-3c33-4c74-9c3a-000000000001",
+      "name": "Every day 18:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8080/api/automation/stale-applications?days=3",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "c3d4e5f6-3c33-4c74-9c3a-000000000002",
+      "name": "Waiting 3+ days",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "CampusConnect API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.MAIL_FROM || 'CampusConnect <no-reply@campusconnect.local>' }}",
+        "toEmail": "={{ $json.ownerEmail }}",
+        "subject": "={{ $json.applicantName }} is still waiting to hear about {{ $json.projectTitle }}",
+        "emailFormat": "text",
+        "text": "=Hi {{ $json.ownerName.split(' ')[0] }},\n\n{{ $json.applicantName }} asked to join {{ $json.projectTitle }} {{ $json.daysPending }} days ago and hasn't had an answer. A quick yes or no helps them find another team if this one is full.\n\n{{ $env.CAMPUSCONNECT_WEB }}/projects/{{ $json.projectId }}/requests\n\nCampusConnect",
+        "options": {}
+      },
+      "id": "c3d4e5f6-3c33-4c74-9c3a-000000000003",
+      "name": "Nudge the owner",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        480,
+        300
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": "CampusConnect SMTP"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every day 18:00": {
+      "main": [
+        [
+          {
+            "node": "Waiting 3+ days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Waiting 3+ days": {
+      "main": [
+        [
+          {
+            "node": "Nudge the owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

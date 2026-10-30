@@ -1,0 +1,24 @@
+# Secrets
+.env
+*.env.local
+
+# Build output and dependencies
+node_modules/
+dist/
+target/
+
+# Local tool output
+.taste-skill/
+.dist/
+
+# Editors and OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Developer tooling, not part of the app
+.claude/
+.github/modernize/
+skills-lock.json

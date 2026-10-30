@@ -1,0 +1,226 @@
+{
+  "name": "CampusConnect: event emails",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "campusconnect",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "6b1f2d0e-1c11-4a52-9a1e-000000000001",
+      "name": "CampusConnect event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "campusconnect-events",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "CampusConnect API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "user.registered",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Welcome"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "project.application",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Application"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "project.invite",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Invite"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6b1f2d0e-1c11-4a52-9a1e-000000000002",
+      "name": "Which event",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.MAIL_FROM || 'CampusConnect <no-reply@campusconnect.local>' }}",
+        "toEmail": "={{ $json.body.data.email }}",
+        "subject": "Welcome to CampusConnect",
+        "emailFormat": "text",
+        "text": "=Hi {{ $json.body.data.name.split(' ')[0] }},\n\nWelcome to CampusConnect. Two things get you matched with teams fastest:\n\n1. Add your skills (or import them from your résumé) on your profile.\n2. Open Projects → Fits your skills to see teams with a free seat for you.\n\n{{ $env.CAMPUSCONNECT_WEB }}/profile\n\nSee you on campus,\nCampusConnect",
+        "options": {}
+      },
+      "id": "6b1f2d0e-1c11-4a52-9a1e-000000000003",
+      "name": "Welcome email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        520,
+        120
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": "CampusConnect SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.MAIL_FROM || 'CampusConnect <no-reply@campusconnect.local>' }}",
+        "toEmail": "={{ $json.body.data.ownerEmail }}",
+        "subject": "={{ $json.body.data.applicantName }} wants to join {{ $json.body.data.title }}",
+        "emailFormat": "text",
+        "text": "=Hi {{ $json.body.data.ownerName.split(' ')[0] }},\n\n{{ $json.body.data.applicantName }} asked to join {{ $json.body.data.title }}.\n\n{{ $json.body.data.message ? '“' + $json.body.data.message + '”\\n\\n' : '' }}Accept or decline here:\n{{ $env.CAMPUSCONNECT_WEB }}/projects/{{ $json.body.data.projectId }}/requests\n\nCampusConnect",
+        "options": {}
+      },
+      "id": "6b1f2d0e-1c11-4a52-9a1e-000000000004",
+      "name": "Tell the owner",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        520,
+        300
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": "CampusConnect SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.MAIL_FROM || 'CampusConnect <no-reply@campusconnect.local>' }}",
+        "toEmail": "={{ $json.body.data.inviteeEmail }}",
+        "subject": "={{ $json.body.data.ownerName }} invited you to {{ $json.body.data.title }}",
+        "emailFormat": "text",
+        "text": "=Hi {{ $json.body.data.inviteeName.split(' ')[0] }},\n\n{{ $json.body.data.ownerName }} thinks you'd be a good fit for {{ $json.body.data.title }} and invited you to the team.\n\nSee the project and answer:\n{{ $env.CAMPUSCONNECT_WEB }}/projects/{{ $json.body.data.projectId }}\n\nCampusConnect",
+        "options": {}
+      },
+      "id": "6b1f2d0e-1c11-4a52-9a1e-000000000005",
+      "name": "Tell the invitee",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        520,
+        480
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": "CampusConnect SMTP"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "CampusConnect event": {
+      "main": [
+        [
+          {
+            "node": "Which event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which event": {
+      "main": [
+        [
+          {
+            "node": "Welcome email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tell the owner",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tell the invitee",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

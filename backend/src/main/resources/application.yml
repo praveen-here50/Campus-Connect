@@ -1,0 +1,66 @@
+# Secrets and environment-specific values come from environment variables.
+# Locally they are read from backend/.env (git-ignored); see .env.example.
+spring:
+  application:
+    name: campusconnect
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      # Supabase free tier has a small connection budget.
+      maximum-pool-size: 5
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+  ai:
+    # Gemini (or Groq) through their OpenAI-compatible endpoints.
+    openai:
+      api-key: ${AI_API_KEY:missing}
+      base-url: ${AI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai/}
+      chat:
+        options:
+          model: ${AI_CHAT_MODEL:gemini-2.5-flash}
+          temperature: 0.3
+      embedding:
+        options:
+          model: ${AI_EMBEDDING_MODEL:gemini-embedding-001}
+          dimensions: 768
+    model:
+      # Embeddings go through EmbeddingClient (Gemini's responses lack fields Spring AI requires).
+      embedding: none
+      image: none
+      audio:
+        speech: none
+        transcription: none
+      moderation: none
+
+server:
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+app:
+  jwt-secret: ${JWT_SECRET}
+  jwt-ttl-hours: 24
+  frontend-urls: ${FRONTEND_URLS:http://localhost:5173}
+  ai:
+    requests-per-minute: ${AI_REQUESTS_PER_MINUTE:10}
+  automation:
+    n8n-webhook-url: ${N8N_WEBHOOK_URL:}
+    api-key: ${AUTOMATION_API_KEY:}
+  github:
+    webhook-secret: ${GITHUB_WEBHOOK_SECRET:}

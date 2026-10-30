@@ -1,0 +1,80 @@
+# Local development stack: PostgreSQL + pgvector and the Spring Boot API.
+#   docker compose up -d --build     then in frontend/: npm run dev, and open http://localhost:5173
+# The Vite dev server can run here instead: `docker compose --profile web up` (for machines where
+# native Vite is blocked, e.g. Windows Smart App Control).
+# Secrets (AI key, JWT secret, n8n) are read from backend/.env; see backend/.env.example.
+# n8n is optional: `docker compose --profile automation up` also starts it on http://localhost:5678.
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: campusconnect
+      POSTGRES_USER: campusconnect
+      POSTGRES_PASSWORD: campusconnect
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campusconnect -d campusconnect"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/campusconnect
+      DB_USERNAME: campusconnect
+      DB_PASSWORD: campusconnect
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-0123456789abcdef}
+      FRONTEND_URLS: http://localhost:5173,http://127.0.0.1:5173
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: node:24-bookworm-slim
+    profiles: ["web"]
+    working_dir: /app
+    command: sh -c "npm ci --no-audit --no-fund && npx vite --host 0.0.0.0"
+    environment:
+      VITE_PROXY_TARGET: http://backend:8080
+      # Bind mounts from Windows do not deliver file events; poll instead.
+      VITE_USE_POLLING: "1"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      # Linux node_modules live in a volume so they never mix with a Windows install.
+      - web-node-modules:/app/node_modules
+    depends_on:
+      - backend
+
+  n8n:
+    image: n8nio/n8n:1.123.4
+    profiles: ["automation"]
+    environment:
+      N8N_HOST: localhost
+      GENERIC_TIMEZONE: Asia/Kolkata
+      # The workflows read these with $env.
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      CAMPUSCONNECT_WEB: http://localhost:5173
+      MAIL_FROM: ${MAIL_FROM:-CampusConnect <no-reply@campusconnect.local>}
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./automation/n8n:/workflows:ro
+
+volumes:
+  db-data:
+  web-node-modules:
+  n8n-data:
