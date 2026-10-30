@@ -32,7 +32,8 @@ services:
       DB_USERNAME: campusconnect
       DB_PASSWORD: campusconnect
       JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-0123456789abcdef}
-      FRONTEND_URLS: http://localhost:5173,http://127.0.0.1:5173
+      # Add a phone on your Wi-Fi in the root .env, e.g. FRONTEND_URLS=http://localhost:5173,http://192.168.*:5173
+      FRONTEND_URLS: ${FRONTEND_URLS:-http://localhost:5173,http://127.0.0.1:5173}
       N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-}
     ports:
       - "8080:8080"

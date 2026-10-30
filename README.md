@@ -1,115 +1,216 @@
 # CampusConnect
 
-A student collaboration platform: students find teammates by skill, run project teams with a live chat
-and a task board, and share what they learn in a searchable knowledge hub. An AI layer matches students
-to projects, answers questions from the hub, drafts project listings and reads résumés; n8n handles the
-emails and reminders.
+> Find the people to build it with: teammates by skill, team workspaces and a campus knowledge hub.
 
-## What it does
+![CampusConnect home page](docs/screenshots/home.png)
 
-| Area | Features |
-| --- | --- |
-| **Profiles & networking** | Skills with levels, availability, résumé (PDF) import, people search by skill, connection requests |
-| **Projects** | Listings with required skills and team size, search and filters, apply / invite / accept / decline, leave and remove members |
-| **Team workspace** | Task board (to do · building · done), real-time team chat over WebSocket, activity feed, GitHub push and pull-request feed |
-| **Knowledge hub** | Questions and write-ups in Markdown, answers, upvotes, tags, keyword search and search by meaning |
-| **AI** | Project ↔ student matching (pgvector embeddings + skill overlap), campus assistant grounded in hub posts with sources, project drafting from a rough idea, next-task suggestions, résumé parsing, post moderation |
-| **Dashboard & inbox** | Home with today's one fact, counts, matched projects, tasks, team activity and campus skills; inbox of requests and live notifications |
-| **Automation (n8n)** | Welcome, application and invitation emails; weekly digest; daily nudge for unanswered applications |
+CampusConnect helps students turn an idea into a team. **Students** list their skills and find projects with a free
+seat that fits them. **Project owners** post what they are building and the skills they need, then invite or accept
+the right people. **Teams** work in a shared workspace with a task board, live chat and an activity feed. What the
+campus learns along the way goes into a **knowledge hub** that anyone can search, by words or by meaning, and an AI
+assistant answers from it with sources.
 
-## Tech stack
+---
 
-- **Backend:** Java 21+, Spring Boot 4 (Web MVC, Security with JWT, Data JPA, WebSocket/STOMP, Validation), Flyway, Spring AI 2 (OpenAI-compatible client pointed at Gemini by default), PDFBox
-- **Database:** PostgreSQL with **pgvector** (Supabase in production, `pgvector/pgvector` locally)
-- **Frontend:** React 19, TypeScript, Vite 8, Tailwind CSS 4, TanStack Query, React Router 7, STOMP.js, Lucide icons
-- **Automation:** n8n (webhook in, scheduled jobs calling the backend's automation API)
+## Features
+
+| | |
+|---|---|
+| **Matching by skill and meaning** | Projects ranked for each student, and students for each project, from skill overlap plus pgvector embeddings of profiles and listings. |
+| **Projects and requests** | Listings with the skills and seats they need; apply, invite, accept, decline, leave and remove members. The seat strip shows a team as its seats, open ones dashed. |
+| **Team workspace** | Task board (to do, building, done), real-time chat over WebSocket, an activity feed and pushes and pull requests from GitHub. |
+| **Knowledge hub** | Questions and write-ups in Markdown, answers, upvotes and tags, searched by keyword or by meaning. |
+| **Campus assistant (AI)** | Answers from hub posts and open projects with the sources it used, knows the student's skills and best matches; also drafts project listings, suggests next tasks and reads résumés (Gemini, free tier). |
+| **Profiles and people** | Skills with levels, availability, a profile photo, GitHub, LinkedIn and portfolio links, résumé import, people search and connection requests. |
+| **Inbox and email** | Live notifications and a requests inbox; welcome, application, invitation, weekly digest and reminder emails through n8n. |
+| **Works on phones** | Responsive layouts with a slide-in menu, and light and dark themes that follow the system. |
+
+<table>
+<tr>
+<td><img src="docs/screenshots/projects.png" alt="Projects list" /></td>
+<td><img src="docs/screenshots/project.png" alt="Project with its team and students who fit" /></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/workspace.png" alt="Team task board" /></td>
+<td><img src="docs/screenshots/assistant.png" alt="Campus assistant answering with a source" /></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/knowledge.png" alt="Knowledge hub" /></td>
+<td><img src="docs/screenshots/people.png" alt="People filtered by skill" /></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/home-dark.png" alt="Home in the dark theme" /></td>
+<td><img src="docs/screenshots/profile.png" alt="Profile settings" /></td>
+</tr>
+</table>
+
+<p align="center">
+<img src="docs/screenshots/phone-home.png" alt="Home on a phone" width="300" />
+<img src="docs/screenshots/sign-in.png" alt="Sign-in page" width="600" />
+</p>
+
+---
+
+## Architecture
 
 ```
-frontend (React) ──REST /api──▶ backend (Spring Boot) ──JPA/Flyway──▶ PostgreSQL + pgvector
-        ▲   └──STOMP /ws──────────▶   │  │                                   ▲
-        │      live chat, activity,   │  └──Spring AI──▶ Gemini (chat + embeddings)
-        │      notifications          ├──events (X-Api-Key)──▶ n8n ──▶ email
-        │                             ◀──/api/automation/** (X-Api-Key)── n8n schedules
-        └────────────── GitHub webhooks ──▶ /api/integrations/github (HMAC-verified)
+┌──────────────┐   REST /api, JWT    ┌──────────────┐  JPA, Flyway  ┌──────────────────┐
+│   Frontend   │────────────────────▶│   Backend    │──────────────▶│   PostgreSQL     │
+│ React 19,    │◀── chat, activity ──│ Spring Boot 4│               │   + pgvector     │
+│ Vite         │   (STOMP over /ws)  └──┬────────┬──┘               └──────────────────┘
+└──────────────┘                        │        │
+                    ┌───────────────────┘        └───────────────────┐
+                    ▼                                                ▼
+           ┌─────────────────┐                              ┌─────────────────┐
+           │   Gemini API    │                              │       n8n       │
+           │ chat, embeddings│                              │ emails, digest, │
+           │  (free tier)    │                              │   reminders     │
+           └─────────────────┘                              └─────────────────┘
 ```
 
-Backend packages: `auth`, `user` (profiles, connections), `project` (projects, members, applications,
-tasks), `team` (chat, activity, GitHub), `knowledge` (posts, comments, votes), `notification`,
-`dashboard`, `ai` (embeddings, matching, assistant, moderation), `automation`, `common`, `config`.
+| Part | Stack | Details |
+|---|---|---|
+| `frontend/` | React 19, TypeScript, Vite 8, Tailwind CSS 4, TanStack Query, React Router 7, STOMP.js | Every screen, light and dark themes |
+| `backend/` | Java 25 (builds on 21), Spring Boot 4, Spring Security (JWT), JPA, Flyway, WebSocket/STOMP, Spring AI 2, PDFBox | REST API, access rules, matching, assistant, moderation, automation API |
+| `automation/n8n/` | n8n workflows | Event emails, weekly digest, reminder for unanswered applications |
+| Database | PostgreSQL 17 with pgvector | `pgvector/pgvector` locally, Neon when deployed |
 
-## Run it locally (Docker, recommended)
+Backend packages: `auth`, `user` (profiles, photos, connections), `project` (projects, members, applications, tasks),
+`team` (chat, activity, GitHub), `knowledge` (posts, comments, votes), `notification`, `dashboard`, `ai` (embeddings,
+matching, assistant, moderation, usage limit), `automation`, `common`, `config`.
 
-Needs Docker Desktop.
+---
+
+## Run it
+
+You need **Docker** and **Node.js 20.19+**.
 
 ```bash
-cp backend/.env.example backend/.env      # optional: add AI_API_KEY for the AI features
-docker compose up -d --build              # database + API
-cd frontend && npm install && npm run dev # the site, with hot reload
+# 1. Settings: copy the example and add a free Google AI Studio key (aistudio.google.com/apikey) for the AI features
+cp backend/.env.example backend/.env
+
+# 2. Database and API on http://localhost:8080
+docker compose up -d --build
+
+# 3. The site on http://localhost:5173
+cd frontend
+npm install
+npm run dev
+
+# 4. Demo students, projects, chats and posts (prints the main student's sign-in)
+node scripts/seed-demo.mjs
 ```
 
-Open <http://localhost:5173>. The API is on :8080 and PostgreSQL on :5432 (user/password/db: `campusconnect`).
-The dev server proxies `/api` and `/ws` to :8080 and must run on 5173, the origin the API allows; if
-the port is taken it stops instead of moving to another one (another dev server is probably running).
-To run the frontend in Docker instead: `docker compose --profile web up`.
+Without an AI key everything works except the AI features, and matching uses skills only. The dev server proxies
+`/api` and `/ws` to port 8080 and must run on 5173, the address the API allows; if the port is taken it stops instead
+of moving to another one. To run the frontend in Docker instead: `docker compose --profile web up`.
 
-To fill it with demo students, projects, chats and posts (password `campus-demo-1` for every account):
+### Demo accounts
+
+Password for all: `campus-demo-1`. Each run of the seed script makes a new set with its own short code in the email,
+`<name>.<code>@demo.campus.edu`; the script prints the code with Kavya's address.
+
+| Student | Who | Good for trying |
+|---|---|---|
+| `kavya.<code>@demo.campus.edu` | Kavya, third-year CS, web and data | Owner of Bike-share dock tracker with a request waiting; Home, inbox, workspace |
+| `kugan.<code>@demo.campus.edu` | Kugan, embedded systems and IoT | Member of the Bike-share team, hub author |
+| `ramesh.<code>@demo.campus.edu` | Ramesh, backend in Java and Go | Owner of Library study-room finder |
+
+Also Nila, Yazhini, Thenmozhi, Senthil, Malar and Arivu, each with their own skills and projects.
+
+### On a phone
+
+1. Connect the phone to the same Wi-Fi as the computer.
+2. Start the site with `npm run dev -- --host` (in `frontend/`).
+3. Find the computer's address (`ipconfig` on Windows, "IPv4 Address" under Wi-Fi) and open `http://<that address>:5173`.
+4. To sign in from the phone, allow your network: copy `.env.example` to `.env` at the root and set
+   `FRONTEND_URLS=http://localhost:5173,http://192.168.*:5173` (or `http://10.*:5173`; `*` matches any part, so a new
+   Wi-Fi address still works), then `docker compose up -d backend`.
+
+### Tests
 
 ```bash
-node scripts/seed-demo.mjs            # prints the email of the main demo student
+cd backend && ./mvnw test            # unit tests: AI usage limit, photo type checks (the full-app test runs when DB_URL is set)
+cd frontend && npx tsc -b && npx oxlint && npm run build
 ```
 
-To start n8n as well: `docker compose --profile automation up`, then open <http://localhost:5678>
-(see [Automation](#automation-n8n)).
+> **Windows with Smart App Control on:** Windows may block the unsigned native binaries Vite, Tailwind and oxlint
+> use ("An Application Control policy has blocked this file"). Run those commands in Docker
+> (`docker compose --profile web up`) or WSL instead.
 
-### Without Docker
+---
 
-- **Database:** a PostgreSQL with the `vector` extension, or a Supabase project. Put its connection
-  string in `backend/.env` (see `.env.example`).
-- **Backend:** `cd backend && ./mvnw spring-boot:run` (JDK matching `java.version` in `pom.xml`).
-- **Frontend:** `cd frontend && npm ci && npm run dev`.
+## Deploy
 
-> **Windows with Smart App Control on:** Windows blocks the unsigned native binaries Vite, Tailwind and
-> oxlint use, so `npm run dev` fails with "An Application Control policy has blocked this file". Run the
-> frontend through Docker (`docker compose --profile web up`), or inside WSL. Smart App Control can be switched off in Windows
-> Security, but Windows does not let you switch it back on without a reinstall.
+A free public deployment: frontend on **Vercel**, API on **Render** (Docker), database on **Neon**.
 
-## Configuration (`backend/.env`)
+1. **Neon:** create a project (region: Singapore). From its connection details (direct connection, not pooled), note
+   the host, database, user and password. pgvector is available; the first start of the API enables it and creates
+   the tables.
+2. **Render:** New → Blueprint → this repository. It reads [`render.yaml`](render.yaml), makes the JWT secret itself
+   and asks for:
+   - `DB_URL`: `jdbc:postgresql://<host>/<database>?sslmode=require`, and `DB_USERNAME`, `DB_PASSWORD` from Neon
+   - `AI_API_KEY`: from aistudio.google.com/apikey
+   - `FRONTEND_URLS`: the Vercel address (step 3), e.g. `https://campus-connect.vercel.app,https://campus-connect-*.vercel.app`
+
+   If you don't know the Vercel address yet, put a placeholder and change it on Render's Environment page after step 3.
+3. **Vercel:** Add New → Project → this repository, Root Directory `frontend` (it reads
+   [`frontend/vercel.json`](frontend/vercel.json)), with the environment variable
+   `VITE_API_URL=https://<render-service>.onrender.com`.
+4. **Demo data (optional):** `node scripts/seed-demo.mjs https://<render-service>.onrender.com`.
+5. **Emails (optional):** host n8n (n8n Cloud or a small Docker host), import the workflows as in
+   [Automation](#automation-n8n), change `http://backend:8080` in their three HTTP Request nodes to the Render address,
+   and set `N8N_WEBHOOK_URL` and the same `AUTOMATION_API_KEY` on Render.
+
+**Changes after deploying:** push to `main`. Vercel rebuilds the frontend, and Render rebuilds the backend when
+`backend/` changed, within a few minutes. Settings are changed on each dashboard's Environment page. Database changes go
+in a new migration (`backend/src/main/resources/db/migration/V3__....sql`); never edit one that has already run.
+
+**Free-plan behaviour:** Render puts the API to sleep after 15 minutes without visitors, and the first visit after that
+takes up to a minute (the site says so if it cannot connect). A free uptime monitor (e.g. UptimeRobot) opening
+`https://<render-service>.onrender.com/actuator/health` every 10 minutes keeps it awake.
+
+---
+
+## Configuration
+
+Locally in `backend/.env` (see [`backend/.env.example`](backend/.env.example)); on Render, its Environment page.
 
 | Variable | Needed for | Notes |
 | --- | --- | --- |
-| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | always | Supabase: Connect → Session pooler, keep `?sslmode=require` |
-| `JWT_SECRET` | always | 32+ random characters |
-| `AI_API_KEY` | AI features | Google AI Studio key. Without it the app works, AI buttons answer "not configured", matching uses skills only |
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | always | Set by docker compose locally; from Neon when deployed |
+| `JWT_SECRET` | always | 32+ random characters; Render generates it |
+| `FRONTEND_URLS` | always | Allowed origins for sign-in and live chat, comma-separated; `*` matches any part |
+| `AI_API_KEY` | AI features | Google AI Studio key. Blank turns the AI features off |
+| `AI_REQUESTS_PER_MINUTE` | optional | Language-model calls per minute for everyone together (default 10, the Gemini free tier) |
+| `ASSISTANT_QUESTIONS_PER_HOUR` | optional | AI requests one student may make per hour (default 10, 0 for no limit) |
 | `AI_BASE_URL`, `AI_CHAT_MODEL`, `AI_EMBEDDING_MODEL` | optional | Any OpenAI-compatible provider; embeddings must be 768-dimensional |
-| `AI_REQUESTS_PER_MINUTE` | optional | Shared limit for LLM calls (default 10, fits the Gemini free tier) |
-| `FRONTEND_URLS` | always | Comma-separated allowed origins for CORS and WebSocket |
-| `N8N_WEBHOOK_URL` | automation | e.g. `http://localhost:5678/webhook/campusconnect` |
-| `AUTOMATION_API_KEY` | automation | Shared secret between the backend and n8n (`X-Api-Key`) |
-| `GITHUB_WEBHOOK_SECRET` | GitHub feed | The secret you enter in the repository's webhook settings |
+| `N8N_WEBHOOK_URL`, `AUTOMATION_API_KEY` | emails | Where the backend sends events, and the key n8n uses for `/api/automation/**` |
+| `GITHUB_WEBHOOK_SECRET` | GitHub feed | The secret entered in the repository's webhook settings |
 
-Frontend: `VITE_API_URL` (production builds only) is the backend's public URL; in development Vite
-proxies `/api` and `/ws`.
+Frontend: `VITE_API_URL` (production builds only) is the backend's public address; in development Vite proxies `/api`
+and `/ws`.
 
 ## Automation (n8n)
 
-The workflows live in `automation/n8n/`. With the `automation` profile they are mounted at
-`/workflows` in the n8n container:
+The workflows live in `automation/n8n/`. With the `automation` profile they are mounted at `/workflows` in the n8n
+container:
 
 ```bash
-docker compose --profile automation run --rm n8n import:workflow --separate --input=/workflows
+docker compose --profile automation up -d
+docker compose exec n8n n8n import:workflow --separate --input=/workflows
 ```
 
-Then in n8n:
+Then in n8n (http://localhost:5678):
 
-1. Create a **Header Auth** credential named `CampusConnect API key`: header `X-Api-Key`, value =
-   your `AUTOMATION_API_KEY`.
-2. Create an **SMTP** credential named `CampusConnect SMTP` (e.g. a Gmail app password, Brevo, Mailtrap).
-3. Open each workflow, pick the two credentials in every node that uses one (a credential shown by name
-   only is not linked yet), **save it (Ctrl+S)**, then activate it. Imported workflows have no saved
-   version until their first save in the editor, and n8n refuses to activate them before that. Import each
-   file once: importing again creates duplicates.
-4. Set `N8N_WEBHOOK_URL=http://n8n:5678/webhook/campusconnect` (inside Docker) and the same
-   `AUTOMATION_API_KEY` for the backend, then restart it.
+1. Create a **Header Auth** credential named `CampusConnect API key`: header `X-Api-Key`, value = your
+   `AUTOMATION_API_KEY`.
+2. Create an **SMTP** credential named `CampusConnect SMTP` (e.g. a Gmail app password: smtp.gmail.com, port 465, SSL).
+3. Open each workflow, pick the two credentials in every node that uses one (a credential shown by name only is not
+   linked yet), **save it (Ctrl+S)**, then activate it. Imported workflows have no saved version until their first save
+   in the editor, and n8n refuses to activate them before that. Import each file once: importing again makes copies.
+4. Set `N8N_WEBHOOK_URL=http://n8n:5678/webhook/campusconnect` in the root `.env` and the same `AUTOMATION_API_KEY` in
+   `backend/.env`, then `docker compose up -d backend`.
 
 | Workflow | Trigger | Does |
 | --- | --- | --- |
@@ -119,20 +220,20 @@ Then in n8n:
 
 ## GitHub activity feed
 
-Owners add the repository (`owner/repo`) to the project. In the GitHub repository: Settings → Webhooks →
-Add webhook, payload URL `https://<your-backend>/api/integrations/github`, content type
-`application/json`, secret = `GITHUB_WEBHOOK_SECRET`, events "Pushes" and "Pull requests". Every member
-then sees pushes and pull requests in the workspace's Activity tab and gets a notification.
+Owners add the repository (`owner/repo`) to the project. In the GitHub repository: Settings → Webhooks → Add webhook,
+payload URL `https://<backend>/api/integrations/github`, content type `application/json`, secret =
+`GITHUB_WEBHOOK_SECRET`, events "Pushes" and "Pull requests". Every member then sees pushes and pull requests in the
+workspace's Activity tab and gets a notification.
 
 ## API overview
 
-All endpoints except `/api/auth/**`, `/api/integrations/github` and `/api/automation/**` need
-`Authorization: Bearer <jwt>`. Errors are RFC 9457 problem details with a readable `detail`.
+All endpoints except `/api/auth/**`, `GET /api/users/{id}/avatar`, `/api/integrations/github` and `/api/automation/**`
+need `Authorization: Bearer <jwt>`. Errors are RFC 9457 problem details with a readable `detail`.
 
 | | |
 | --- | --- |
 | Auth | `POST /api/auth/register`, `POST /api/auth/login` |
-| Users | `GET/PUT /api/users/me`, `GET /api/users?q=&skill=`, `GET /api/users/{id}` |
+| Users | `GET/PUT /api/users/me`, `POST/DELETE /api/users/me/avatar`, `GET /api/users?q=&skill=`, `GET /api/users/{id}`, `GET /api/users/avatars`, `GET /api/users/{id}/avatar` |
 | Connections | `GET/POST /api/connections`, `POST /api/connections/{id}/accept`, `DELETE /api/connections/{id}` |
 | Projects | `GET/POST /api/projects`, `GET /api/projects/mine`, `GET /api/projects/by-user/{id}`, `GET/PUT/DELETE /api/projects/{id}`, `DELETE /api/projects/{id}/members/{userId}` |
 | Requests | `POST /api/projects/{id}/applications`, `POST /api/projects/{id}/invites`, `GET /api/projects/{id}/applications`, `GET /api/applications/mine`, `GET /api/applications/incoming`, `POST /api/applications/{id}/accept\|reject`, `DELETE /api/applications/{id}` |
@@ -144,23 +245,35 @@ All endpoints except `/api/auth/**`, `/api/integrations/github` and `/api/automa
 | Dashboard | `GET /api/dashboard` |
 | Automation | `GET /api/automation/weekly-digest`, `GET /api/automation/stale-applications?days=`, `POST /api/automation/notifications` (header `X-Api-Key`) |
 
-## Deploying (free tiers)
-
-- **Database:** Supabase (pgvector is built in; Flyway creates the schema on first start).
-- **Backend:** any Docker host, e.g. Render or Railway, from `backend/Dockerfile`. Set the variables
-  above, with `FRONTEND_URLS` = the frontend's URL.
-- **Frontend:** Vercel or Netlify: build `npm run build`, output `dist`, set `VITE_API_URL`, and add an
-  SPA rewrite of all paths to `/index.html`.
-- **n8n:** n8n Cloud or a small Docker host; set `CAMPUSCONNECT_WEB` to the deployed site and change
-  `http://backend:8080` in the three HTTP Request nodes to the deployed API. (The URLs are plain text
-  because the n8n editor cannot read environment variables and refuses to activate a workflow whose URL
-  it cannot resolve.)
-
 ## Design
 
-The interface follows an "editorial greeting" app style dealt by the taste skill
-(`.claude/skills/design-taste-frontend`, seed 232785751): Instrument Sans with an Instrument Serif greeting,
-tonal panels without shadows, near-black pill buttons, and one teal accent kept for data (match scores,
-open seats, your own skills). The product's own element is the **seat strip**: a team drawn as its
-seats, filled by members and dashed where a seat is still open. Light and dark themes follow the system,
-with a toggle in the sidebar.
+An "editorial greeting" app style: Instrument Sans with an Instrument Serif greeting, white panels with a 1px edge on an
+off-white ground, no shadows, near-black pill buttons, and one teal accent kept for data (match scores, open seats,
+progress, your own skills). The product's own element is the **seat strip**: a team drawn as its seats, filled by
+members and dashed where a seat is still open. Light and dark themes follow the system, with a toggle in the sidebar.
+
+---
+
+## Status and limits
+
+Working prototype with demo data. Before real students rely on it:
+
+- **Accounts:** anyone can sign up; there is no email verification, password change or reset, and no limit on wrong
+  password attempts yet. The sign-in token is kept in the browser's local storage.
+- **Data sent to the AI:** assistant questions, project ideas and résumé text go to Google's Gemini API, and profiles,
+  projects and posts are embedded there for matching. Use a paid key or your own OpenAI-compatible model
+  (`AI_BASE_URL`) for data that must stay private.
+- **Gemini's free tier** allows only a few requests a minute in total (`AI_REQUESTS_PER_MINUTE`), and each student may
+  make 10 AI requests an hour (`ASSISTANT_QUESTIONS_PER_HOUR`).
+- **Profile photos** are served at a public address (an image tag cannot send the sign-in token), so anyone with the
+  link can see one. Only JPEG, PNG and WebP are accepted, checked by content.
+- **Demo data is not reset automatically:** students sign up for real, so a nightly reset would delete their accounts.
+  Seed a fresh set with `scripts/seed-demo.mjs` when needed.
+- **Emails** need n8n hosted somewhere and an SMTP account; without them the app works and only the emails are missing.
+- Student and project names in the demo data are made up.
+
+---
+
+## License
+
+[MIT](LICENSE)

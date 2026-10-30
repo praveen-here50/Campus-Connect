@@ -74,7 +74,9 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(frontendUrls);
+        // Patterns, so one entry covers a host's preview sites (https://campus-connect-*.vercel.app)
+        // or a phone on the local Wi-Fi (http://192.168.*:5173).
+        config.setAllowedOriginPatterns(frontendUrls);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

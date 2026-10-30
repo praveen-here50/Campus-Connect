@@ -1,0 +1,42 @@
+# Render Blueprint for the backend API (Render dashboard: New > Blueprint, pick this repository).
+# The frontend runs on Vercel and the database on Neon; see "Deploy" in README.md.
+services:
+  - type: web
+    name: campusconnect-backend
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - backend/**
+    envVars:
+      # From Neon: jdbc:postgresql://<host>/<database>?sslmode=require, with the user and password separately.
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      # Signs sign-in tokens; Render makes a long random one. Changing it signs everyone out.
+      - key: JWT_SECRET
+        generateValue: true
+      # The Vercel site, plus its preview deployments, e.g. https://campus-connect.vercel.app,https://campus-connect-*.vercel.app
+      - key: FRONTEND_URLS
+        sync: false
+      # Google AI Studio key (aistudio.google.com/apikey). Blank turns the AI features off; everything else works.
+      - key: AI_API_KEY
+        sync: false
+      # Gemini's free tier, shared by every visitor: calls per minute in total, and per student per hour.
+      - key: AI_REQUESTS_PER_MINUTE
+        value: "10"
+      - key: ASSISTANT_QUESTIONS_PER_HOUR
+        value: "10"
+      # Only used with n8n (emails) and the GitHub activity feed; see README.md.
+      - key: AUTOMATION_API_KEY
+        generateValue: true
+      - key: GITHUB_WEBHOOK_SECRET
+        generateValue: true

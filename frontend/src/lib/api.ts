@@ -60,7 +60,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   try {
     res = await fetch(`${API_URL}${path}`, { method, headers, body: payload })
   } catch {
-    throw new ApiError(0, 'Cannot reach CampusConnect right now. Check your connection.')
+    throw new ApiError(0, 'Cannot reach CampusConnect right now. If the server was asleep it takes up to a minute to wake; try again shortly.')
   }
 
   if (res.status === 401 && token && !path.startsWith('/api/auth/')) onUnauthorized()

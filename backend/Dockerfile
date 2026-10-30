@@ -13,4 +13,5 @@ RUN useradd --system --uid 10001 app
 COPY --from=build /src/target/*.jar app.jar
 USER app
 EXPOSE 8080
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]
+# Leaves room for the JVM's own memory on small hosts (Render's free plan has 512 MB).
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=70", "-XX:+UseSerialGC", "-Xss512k", "-jar", "app.jar"]
