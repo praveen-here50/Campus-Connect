@@ -13,5 +13,9 @@ RUN useradd --system --uid 10001 app
 COPY --from=build /src/target/*.jar app.jar
 USER app
 EXPOSE 8080
-# Leaves room for the JVM's own memory on small hosts (Render's free plan has 512 MB).
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=70", "-XX:+UseSerialGC", "-Xss512k", "-jar", "app.jar"]
+# Sized for Render's free plan (512 MB), measured under load: the heap holds about 60 MB of live data,
+# while Spring's classes need about 150 MB outside it. A 70% heap pushed the container to 506 MB and
+# got it killed; with these settings it peaks around 410 MB.
+ENV MALLOC_ARENA_MAX=2
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=35", "-XX:+UseSerialGC", "-Xss512k", "-XX:TieredStopAtLevel=1", \
+            "-XX:ReservedCodeCacheSize=48m", "-XX:MaxMetaspaceSize=200m", "-jar", "app.jar"]
